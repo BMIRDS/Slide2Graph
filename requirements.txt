@@ -1,0 +1,6 @@
+# List required python libraries for this repository:
+#   https://pip.pypa.io/en/stable/reference/pip_install/#example-requirements-file
+# Install libraries using this file:
+#   $ pip install -r requirements.txt
+
+
