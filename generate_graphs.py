@@ -13,16 +13,25 @@ from PIL import Image
 import os
 from config import Config
 from utils import get_dataset
-config = Config()
 
-save_all = False  
-output_dst = 'clean_graph_updated_4allconn'
+
+"""
+This file is used to generate graph data from patches' features and positions.
+The generated graphs will be used in main.py to train and evaluate the graph
+"""
+
+
+config = Config()
+save_all = False #Save the intermediate data or not
+output_dst = 'clean_graph_updated_4allconn' #destination to save graphs
 splits = ['train','test','val']
+
+
+
 for split in splits:
     window_size = 224
     nonoverlap_factor = 2/3
     step_size = int(window_size * nonoverlap_factor)
-    print(split)
     model_path = Path(config.val_model)
     parent_path = Path(config.validation_raw_src)
     ckpt = torch.load(f=str(model_path.joinpath('ckpt.pth')))
@@ -33,7 +42,6 @@ for split in splits:
     model.load_state_dict(ckpt['model_state_dict'])
     model = nn.Sequential(*list(model.children())[:-1])
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(device)
 
     path_mean = [0.7725, 0.5715, 0.6842]
     path_std = [0.1523, 0.2136, 0.1721]

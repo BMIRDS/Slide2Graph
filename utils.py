@@ -31,6 +31,12 @@ config = Config()
 
 
 def generate_data(raw_array,label_array):
+    """
+    Generate graph data without whole slide info from raw data
+    Args:
+        raw_array: a matrix of patches' features extracted by ResNet
+        label_array: a matrix of patches' labels
+    """
     candidate_position = np.nonzero(raw_array)
     pos_x, pos_y = filter_positions(candidate_position)
     num_of_nodes = len(pos_x)
@@ -71,6 +77,11 @@ def generate_data(raw_array,label_array):
 
 
 def filter_positions(candidate_position):
+    """
+    Remove some redundant positions
+    Args:
+        candidate_position: all possible positions
+    """
     cdd_position_set = set()
     x,y,z = candidate_position
     for item in zip(x,y):
@@ -87,6 +98,11 @@ def filter_positions(candidate_position):
 
 
 def plot_graph(a_graph):
+    """
+    plot the topology structure of a graph
+    Args:
+        a_graph: the graph need to be visualized
+    """
     g_nx = gutils.to_networkx(a_graph,to_undirected=True)
     labeldict = {list(g_nx.nodes())[i]:str(a_graph.y[i].numpy()) for i in range(len(a_graph.y))}
     nx.draw_kamada_kawai(g_nx,labels=labeldict,with_labels=True)
@@ -96,6 +112,14 @@ def plot_graph(a_graph):
 
 
 def get_dataset(raw_array,label_array,wsi_id,wsi_label):
+    """
+    Generate graph data from raw data
+    Args:
+        raw_array: a matrix of patches' features extracted by ResNet
+        label_array: a matrix of patches' labels
+        wsi_id: Whole Slide Image ID
+        wsi_label: Whole Slide Image Label
+    """
     candidate_position = np.nonzero(raw_array) 
     pos_x, pos_y = filter_positions(candidate_position)
     num_of_nodes = len(pos_x)
@@ -130,6 +154,13 @@ def get_dataset(raw_array,label_array,wsi_id,wsi_label):
 
 
 def boots_ci(y_true,y_pred,bs_times=10000):
+    """
+    Calculate confidence interval using bootstrap
+    Args:
+        y_true: Labels
+        y_pred: Predictions
+        bs_times: sample times
+    """
     alpha = 5.0
     num_observations = len(y_true)
     np.random.seed(1)
@@ -152,6 +183,13 @@ def boots_ci(y_true,y_pred,bs_times=10000):
     return output_list
 
 def auc_ci(y_true,y_score,bs_times=10000):
+    """
+    Calculate confidence interval of AUC using boostrap
+    Args:
+        y_true: Labels
+        y_score: Probabilities 
+        bs_times: sample times
+    """
     alpha = 5.0
     num_observations = len(y_true)
     np.random.seed(1)
@@ -178,6 +216,13 @@ def auc_ci(y_true,y_score,bs_times=10000):
 
 
 def boots_fscores(y_true,y_pred,bs_times=10000):
+    """
+    Calculate confidence interval of f scores using boostrap
+    Args:
+        y_true: Labels
+        y_pred: Predictions
+        bs_times: sample times
+    """
     num_observations = len(y_true)
     np.random.seed(1)
     f_neo_list = []

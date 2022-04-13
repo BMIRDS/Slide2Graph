@@ -35,6 +35,7 @@ criterion = torch.nn.CrossEntropyLoss()
 scheduler1 = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min',factor=0.8, patience=5, threshold=0.0001)
 
 def run():
+    ##Train the model
     model.to(device)
     criterion.to(device)
     train_loss = []
@@ -67,7 +68,7 @@ def run():
         scheduler1.step(loss.item())
 
 
-
+    #Evaluate the model
     print('Evaluation:')
 
     loader = gDataLoader(train_graphs,batch_size=len(train_graphs),shuffle=False)

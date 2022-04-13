@@ -33,11 +33,19 @@ def get_slide_path(train_path, parent_path):
 
 
 def pil_loader(path):
+    '''
+    Load image
+    Args:
+        path: image path
+    '''
     with open(path, 'rb') as f:
         img = Image.open(f)
         return img.convert('RGB')
 
 class SlideData(Dataset):
+    """
+    Create a dataset to load patch-level images
+    """
     def __init__(self,path,transforms=None,train='train',exclude=None,overall_info=config.dst_pkl):
         self.transforms = transforms
         self.path = path
