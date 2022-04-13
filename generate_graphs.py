@@ -29,11 +29,15 @@ splits = ['train','test','val']
 
 
 for split in splits:
+    #Input the parameters used to extract patch images#
     window_size = 224
     nonoverlap_factor = 2/3
     step_size = int(window_size * nonoverlap_factor)
-    model_path = Path(config.val_model)
-    parent_path = Path(config.validation_raw_src)
+    ##################
+
+    #Load the patch-level feature extractor and patch data
+    model_path = Path(config.val_model) #Patch-level feature extractor
+    parent_path = Path(config.validation_raw_src) #Path to small fixed-size patch images
     ckpt = torch.load(f=str(model_path.joinpath('ckpt.pth')))
     model = torchvision.models.resnet18(pretrained=False)
     num_ftrs = model.fc.in_features
@@ -53,6 +57,9 @@ for split in splits:
     train_dataset = SlideData(parent_path,transform,train=split,exclude=None,overall_info=config.val_raw_pkl) 
     dataloaders = {}
     dataloaders[split] = torch.utils.data.DataLoader(dataset=train_dataset,batch_size=32,num_workers=8,shuffle=False)
+    ##################
+
+    #Extract patch-level features and match patch positions
     label_list = []
     pred_list = []
     score_list = []
@@ -72,7 +79,9 @@ for split in splits:
         for tissue_x,tissue_y,patch_x,patch_y in zip(pos_info[0],pos_info[1],pos_info[2],pos_info[3]):
             pos_list.append([(tissue_x//step_size + 1),(tissue_y//step_size + 1),patch_x,patch_y])
         ids_list.extend(list(wsi_ids.numpy()))
+    ##################
 
+    #Construct graphs using patch features as node features and creating edges based on patch positions
     id2label = pickle.load(open(config.val_raw_pkl,'rb'))[1]
     name_map = {'NotAnnotated':1,'Neoplastic':0,'Positive':2}
     graph_list = []
@@ -111,4 +120,4 @@ for split in splits:
     if not save_all:
         with open(f'./{output_dst}/{split}_graphs.pkl','wb') as f:
             pickle.dump(graph_list,f)
-
+    ##################

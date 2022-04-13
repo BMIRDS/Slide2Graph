@@ -12,7 +12,7 @@ run `python main.py` to train the model. Some parameters can be modifed in `conf
 
 
 ## Visualization
-&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;Important Nodes  &ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp; Annotations 
+&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;Important Nodes  &ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp; Annotations 
 <div align=center><img width="280" src="IMG/figure1_r.jpg" alt="Important Nodes"> <img width="280" src="IMG/figure1_label.jpg" alt="Annotations"></div>
 <div align=center><img width="280" src="IMG/figure2_r.jpg" alt="Important Nodes"> <img width="280" src="IMG/figure2_label.jpg" alt="Annotations"></div>
 <div align=center><img width="280" src="IMG/figure3_r.jpg" alt="Important Nodes"> <img width="280" src="IMG/figure3_label.jpg" alt="Annotations"></div>
