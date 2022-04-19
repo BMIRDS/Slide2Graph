@@ -10,7 +10,6 @@ import torch
 class GraphCls(torch.nn.Module):
     def __init__(self,hidden_channels=256): 
         super(GraphCls,self).__init__()
-        torch.manual_seed(1022)
         self.conv1 = gnn.GCNConv(512,hidden_channels)
         self.conv2 = gnn.GCNConv(hidden_channels,hidden_channels)
         self.conv3 = gnn.GCNConv(hidden_channels,hidden_channels)
