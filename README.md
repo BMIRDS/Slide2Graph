@@ -1,8 +1,11 @@
-# Slide2Graph
-Slide2Graph provides a way to analyze whole slide images. We use sliding window techniques to generate patches from whole slide images. Whole slide images can be viewed as graphs, and patches generated from slides can be viewed as nodes in the graphs. By doing this, the structural and positional information of patches can be preserved. Unlike previous slide-level inference models that only take patch-level features as input, Slide2Graph takes both local patches' features and global structural and positional information of patches as inputs. In our experiments, Slide2Graph model has better performance than models that drop structral and positional information.
+# Slide2Graph: A Graph Convolutional Network-based Whole-Slide Analysis
 
-To get the high-dimensional representations & coordinates of patches in one whole slide images, [SlidePreprocessing](https://github.com/BMIRDS/SlidePreprocessing) is used to extract tissue and generate small fixed-size patches from whole slide images. After generating the patches, you can train a patch-level ResNet using the patches, which is what we did. The patches overlapped for 1/3 to generate more patches for better patch-level model training. You are encouraged to generate non-overlap patches in the whole-slide level inference, but patches with 1/3 overlap will still work. Notably, you don't have to train the patch-level model. Based on our experiments, the ResNet pretrained on ImageNet can also be used as a feature extractor here although its performance is not as good as the ResNet trained on specific histopathological patches.
-The ResNet without the last FC layer will be utilized to generate the high-dimensional representations for the small fixed-size patch images. 
+Slide2Graph provides a way to analyze whole slide images using a graph convolutional neural network. In our framework, a whole slide image can be viewed as a graph where each tissue patch represents a node in the graph. Our Slide2Graph takes both local patches' features and global structural-and-positional information of the patches as inputs to construct a computational graph of a histopathology image. Our study shows that the structural and positional information is a critical component of Slide2Graph in achieving higher performance than a conventional deep convolutional neural network that takes only patch-based features into account.
+
+ ![alt text](IMG/pipeline.jpg)
+
+
+To get the high-dimensional representations & coordinates of patches in one whole slide images, [SlidePreprocessing](https://github.com/BMIRDS/SlidePreprocessing) is used to extract tissue and generate small fixed-size patches from whole slide images. After generating the patches, you can train a patch-level ResNet as a feature extractor using the patches. Notably, you can use a ResNet model pretrained on ImageNet as an alternative feature extractor; however, its performance would be inferior to the ResNet trained on specific histopathological patches. Finally, the ResNet without the last FC layer will be utilized to generate the high-dimensional representations for the small fixed-size patch images. 
 
 
 ## Usage
