@@ -1,17 +1,19 @@
-import pickle
-import torch
-from pathlib import Path
-import torchvision
-from torch import nn
-from datasets import SlideData
 from collections import Counter
+from pathlib import Path
+from PIL import Image
+import numpy as np
+import os
+import pickle
+
+from torch import nn
 from tqdm import tqdm
 import pandas as pd
-import numpy as np
 import sklearn
-from PIL import Image
-import os
+import torch
+import torchvision
+
 from config import Config
+from datasets import SlideData
 from utils import get_dataset
 
 
@@ -24,6 +26,7 @@ The generated graphs will be used in main.py to train and evaluate the graph
 config = Config()
 save_all = False #Save the intermediate data or not
 output_dst = 'clean_graph_updated_4allconn' #destination to save graphs
+#^TODO: GENERALIZE NAME. SHOULDN'T THIS BE INCLUDED IN THE CONFIG FILE?
 splits = ['train','test','val']
 
 
@@ -32,6 +35,7 @@ for split in splits:
     #Input the parameters used to extract patch images#
     window_size = 224
     nonoverlap_factor = 2/3
+    #^TODO: THESE SHOULD BE IN THE CONFIG.
     step_size = int(window_size * nonoverlap_factor)
     ##################
 
@@ -43,20 +47,28 @@ for split in splits:
     num_ftrs = model.fc.in_features
     model.fc = nn.Sequential(
         nn.Linear(num_ftrs, 3))
+    #^TODO: THE NUMBER OF CLASSES SHOULD BE A VARIABLE TO BE STORED IN COFNIG?
     model.load_state_dict(ckpt['model_state_dict'])
     model = nn.Sequential(*list(model.children())[:-1])
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     path_mean = [0.7725, 0.5715, 0.6842]
     path_std = [0.1523, 0.2136, 0.1721]
+    #^TODO: SHOULD BE DEFINED IN CONFIG?
     transform = torchvision.transforms.Compose([
                 torchvision.transforms.ToTensor(),
                 torchvision.transforms.Normalize(mean=path_mean, std=path_std)])
     model.to(device)
     model.train(mode=False)
-    train_dataset = SlideData(parent_path,transform,train=split,exclude=None,overall_info=config.val_raw_pkl) 
+    train_dataset = SlideData(
+        parent_path,transform,
+        train=split,
+        exclude=None,
+        overall_info=config.val_raw_pkl) 
     dataloaders = {}
-    dataloaders[split] = torch.utils.data.DataLoader(dataset=train_dataset,batch_size=32,num_workers=8,shuffle=False)
+    dataloaders[split] = torch.utils.data.DataLoader(
+        dataset=train_dataset,batch_size=32,num_workers=8,shuffle=False)
+    #^TODO: BATCHSIZE, NUMWORKERS -> CONFIG
     ##################
 
     #Extract patch-level features and match patch positions
@@ -71,19 +83,36 @@ for split in splits:
         with torch.set_grad_enabled(mode=False):
             train_outputs = model(train_inputs)
             train_preds = torch.argmax(train_outputs,dim=1)
-            train_scores = [np.squeeze(torch.softmax(item,dim=0).detach().cpu().numpy()) for item in train_outputs]         
+            train_scores = [np.squeeze(
+                torch.softmax(item,dim=0).detach().cpu().numpy()) for item in train_outputs]         
         pred_list.extend([item for item in train_preds.detach().cpu().numpy()])
         label_list.extend([item for item in train_labels.detach().cpu().numpy()])
         score_list.extend(train_scores)
         pos_info = [list(item.numpy()) for item in positions]
-        for tissue_x,tissue_y,patch_x,patch_y in zip(pos_info[0],pos_info[1],pos_info[2],pos_info[3]):
-            pos_list.append([(tissue_x//step_size + 1),(tissue_y//step_size + 1),patch_x,patch_y])
+        for tissue_x, tissue_y, patch_x, patch_y in zip(pos_info[0], pos_info[1], pos_info[2], pos_info[3]):
+            """
+            ^TODO: MAYBE YOU CAN REPLACE
+                zip(pos_info[0], pos_info[1], pos_info[2], pos_info[3])
+            WITH
+                zip(*pos_info[:4])
+            """
+            pos_list.append([
+                (tissue_x//step_size + 1),
+                (tissue_y//step_size + 1),
+                patch_x, patch_y])
         ids_list.extend(list(wsi_ids.numpy()))
     ##################
 
-    #Construct graphs using patch features as node features and creating edges based on patch positions
+    #Construct graphs using patch features as node features 
+    #and creating edges based on patch positions
     id2label = pickle.load(open(config.val_raw_pkl,'rb'))[1]
     name_map = {'NotAnnotated':1,'Neoplastic':0,'Positive':2}
+    #^TODO: THIS CAN BE IN CONFIG
+
+    """^TODO: I'D RECOMMEND THIS HERE TO AVOID REPETITION LATER
+    pos_list_array = np.array(pos_list)
+    ids_list_array = np.array(ids_list)
+    """
     graph_list = []
     for wsi_id in tqdm(list(set(ids_list))):
         wsi_label = name_map[id2label[wsi_id]]
@@ -102,8 +131,10 @@ for split in splits:
         for i in range(len(positive_score)):
             heat_img[x[i]-1,y[i]-1,:] = positive_score[i] * 255
             label_img[x[i]-1,y[i]-1] = patch_label[i]
-        if (len(np.nonzero(heat_img)[0]) == len(np.nonzero(heat_img)[1])) & (len(np.nonzero(heat_img)[2]) == len(np.nonzero(heat_img)[1])):
+        if (len(np.nonzero(heat_img)[0]) == len(np.nonzero(heat_img)[1])) &\
+           (len(np.nonzero(heat_img)[2]) == len(np.nonzero(heat_img)[1])):
             text = 'gg'
+            #^ WHAT'S GG?
         else:
             print(text)
         if not os.path.exists(f'./{output_dst}/3cls_{split}'):
@@ -112,6 +143,7 @@ for split in splits:
             os.makedirs(f'./{output_dst}/3cls_{split}/score/')
         if not os.path.exists(f'./{output_dst}/3cls_{split}/label/'):
             os.makedirs(f'./{output_dst}/3cls_{split}/label/')      
+        #^TODO: USE PATHLIB FUNCTIONS
         if save_all:        
             np.save(f'./{output_dst}/3cls_{split}/score/{wsi_id}_{wsi_label}',heat_img)
             np.save(f'./{output_dst}/3cls_{split}/label/{wsi_id}_{wsi_label}',label_img)

@@ -1,20 +1,23 @@
-import imp
-import pickle
+from matplotlib import pyplot as plt
 from pathlib import Path
+import imp
+import math
 import numpy as np
-import torch
-from models import GraphCls
-import torch_geometric.data as gdata
-import torch_geometric.utils as gutils
+import pickle
+
 from scipy.special import softmax
 from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
 from sklearn.metrics import precision_recall_fscore_support as score
 from torch_geometric import utils as gutils
 from torch_geometric.data import DataLoader as gDataLoader
-from matplotlib import pyplot as plt
+import torch
+import torch_geometric.data as gdata
+import torch_geometric.utils as gutils
+
 #from utils import get_dataset
-import math
 from config import Config
+from models import GraphCls
+
 
 config = Config()
 
@@ -29,10 +32,18 @@ vloader = gDataLoader(val_graphs,batch_size=len(val_graphs),shuffle=False)
 tloader = gDataLoader(test_graphs,batch_size=len(test_graphs),shuffle=False)
 model = GraphCls(hidden_channels=config.hidden_size)
 
-optimizer = torch.optim.AdamW(model.parameters(),lr=config.learning_rate,weight_decay=config.weight_decay) 
+optimizer = torch.optim.AdamW(
+    model.parameters(),
+    lr=config.learning_rate,
+    weight_decay=config.weight_decay) 
 criterion = torch.nn.CrossEntropyLoss()
 
-scheduler1 = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min',factor=0.8, patience=5, threshold=0.0001)
+scheduler1 = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer,
+    'min',
+    factor=0.8,
+    patience=5,
+    threshold=0.0001)
 
 def run():
     ##Train the model
@@ -71,7 +82,8 @@ def run():
     #Evaluate the model
     print('Evaluation:')
 
-    loader = gDataLoader(train_graphs,batch_size=len(train_graphs),shuffle=False)
+    loader = gDataLoader(train_graphs, batch_size=len(train_graphs), shuffle=False)
+    #^TODO: IN GENERAL, ADD SINGLE SPACE AFTER COMMA FOR BETTER VISIBILITY
     for gb in loader:
         model = model.eval()
         out = model(gb.x.to(device), gb.edge_index.to(device),gb.edge_attr.to(device),gb.batch.to(device))
@@ -80,8 +92,6 @@ def run():
     score_list = softmax(out.cpu().detach().numpy(),axis=1)
     print(confusion_matrix(true,pred))
     print(score(true,pred))
-
-
 
     loader = gDataLoader(val_graphs,batch_size=len(val_graphs),shuffle=False)
     for gb in loader:
@@ -93,8 +103,6 @@ def run():
     print(confusion_matrix(true,pred))
     print(score(true,pred))
 
-
-
     loader = gDataLoader(test_graphs,batch_size=len(test_graphs),shuffle=False)
     for gb in loader:
         model = model.eval()
@@ -103,6 +111,26 @@ def run():
         true = np.array(gb.graph_y)
     print(confusion_matrix(true,pred))
     print(score(true,pred))
+    """^TODO: INSTEAD OF RUNNING EVALUATION OF A TRAIN, VAL, TEST IN A SEQUANCE,
+    I'D RECOMMEND ADDING AN AUGMENT TO CONTROL WHETHER THE SCRIPT IS RUNNING ON
+    TRAIN/VAL SET OR TEST SET. THIS IS IMPORTANT BECAUSE TEST SET SHOULD BE
+    TESTED ONLY ONCE USING A MODEL THAT PERFORMS BEST ON VALIDATION SET. 
+    CURRENT FORMULATION GIVES A READER A WRONG IMPRESSION IF THE SCRIPT 
+    VIOLATES THE PRINCIPLE.
+
+    ex)
+    mode = config.mode #or mode = args.mode
+    mode is either 'train' or 'test'
+
+    if mode == 'train':
+        for each epoch:
+            do train
+            evalate on val
+        save_model()
+    else: # 'test'
+        load_model_snapshot()
+        evaluate on test
+    """
 
 if __name__ == '__main__':
     run()

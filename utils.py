@@ -1,33 +1,31 @@
+
+from pathlib import Path
+import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import numpy as np
 import os
-from pathlib import Path
-import scipy.spatial as spt
 import re
+
+from sklearn import metrics
+from sklearn.metrics import f1_score
+from sklearn.metrics import precision_recall_fscore_support as score
+from sklearn.utils import resample
 from torch_geometric.data import Data
-from config import Config
-import torch
-import networkx as nx
-import torch_geometric.utils as gutils
-import matplotlib.pyplot as plt
-import torch_geometric
-import torch_geometric.data as gdata
 from torch_geometric.data import DataLoader as gDataLoader
 from torch_scatter import scatter_mean
-from config import Config
-import matplotlib.pyplot as plt
 from tqdm import tqdm
-from sklearn.utils import resample
-from sklearn.metrics import f1_score
-from sklearn import metrics
-from sklearn.metrics import precision_recall_fscore_support as score
+import scipy.spatial as spt
+import torch
+import torch_geometric
+import torch_geometric.data as gdata
+import torch_geometric.utils as gutils
+import networkx as nx
 
-
-
-
+from config import Config
+from config import Config
 
 config = Config()
-
-
+#^DO YOU NEED THIS?
 
 
 def generate_data(raw_array,label_array):
@@ -124,8 +122,10 @@ def get_dataset(raw_array,label_array,wsi_id,wsi_label):
     pos_x, pos_y = filter_positions(candidate_position)
     num_of_nodes = len(pos_x)
     points = [ [pos_x[i], pos_y[i]] for i in range(num_of_nodes)]
-    nodes = np.array([raw_array[points[i][0]][points[i][1]] for i in range(len(points))])
-    node_labels = np.array([label_array[points[i][0]][points[i][1]] for i in range(len(points))])
+    nodes = np.array(
+        [raw_array[points[i][0]][points[i][1]] for i in range(len(points))])
+    node_labels = np.array(
+        [label_array[points[i][0]][points[i][1]] for i in range(len(points))])
     node_labels = torch.from_numpy(node_labels).long()
     pos = np.array([[points[i][0],points[i][1]] for i in range(len(points))])  
     pos = torch.from_numpy(pos)
@@ -146,7 +146,14 @@ def get_dataset(raw_array,label_array,wsi_id,wsi_label):
         attrs.extend([(1/dist) for dist in d])
     edges = torch.from_numpy(np.transpose(np.array(edges)))
     attrs = torch.from_numpy(np.array(attrs).reshape(-1,1))
-    a_graph = Data(x=nodes.float(),edge_index=edges,edge_attr=attrs.squeeze(1).float(),y=node_labels,pos=pos,graph_y=label,slide_index=slide_idx)
+    a_graph = Data(
+        x=nodes.float(),
+        edge_index=edges,
+        edge_attr=attrs.squeeze(1).float(),
+        y=node_labels,
+        pos=pos,
+        graph_y=label,
+        slide_index=slide_idx)
     return a_graph
 
 
@@ -201,13 +208,15 @@ def auc_ci(y_true,y_score,bs_times=10000):
             indices = resample(range(num_observations),n_samples=num_observations)
             bs_true = y_true[indices]
             bs_score = y_score[indices,a_cls]
-            fpr, tpr, thresholds = metrics.roc_curve([item for item in bs_true], bs_score, pos_label=a_cls)
+            fpr, tpr, thresholds = metrics.roc_curve(
+                [item for item in bs_true], bs_score, pos_label=a_cls)
             f_score_list.append(metrics.auc(fpr, tpr))
         f_score_list = [item for item in f_score_list]
         f_scores = np.array(f_score_list)
         lower_p = alpha / 2.0
         upper_p = (100 - alpha) + (alpha / 2.0)
-        fpr, tpr, thresholds = metrics.roc_curve([item for item in y_true], y_score[:,a_cls], pos_label=a_cls)
+        fpr, tpr, thresholds = metrics.roc_curve(
+            [item for item in y_true], y_score[:,a_cls], pos_label=a_cls)
         avg = metrics.auc(fpr,tpr)
         lower = np.percentile(f_scores, lower_p,axis=0)
         upper = np.percentile(f_scores, upper_p,axis=0)

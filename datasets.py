@@ -1,12 +1,15 @@
-import torch
-from torch.utils.data import Dataset
-import pickle
 from pathlib import Path
-import os
-import PIL
 from PIL import Image
 import numpy as np
+import os
+import pickle
+import PIL
+
+import torch
+from torch.utils.data import Dataset
+
 from config import Config
+
 config = Config()
 
 
@@ -25,6 +28,7 @@ def get_slide_path(train_path, parent_path):
         for class_name in os.listdir(slide_folder):
             class_folder = slide_folder.joinpath(class_name)
             for patch in os.listdir(class_folder):
+                #^TODO: PLEASE USE PATHLIB FUNCTIONS
                 patch_path.append(class_folder.joinpath(patch))
                 patch_label.append(class_name)
                 patch_position.append([int(i) for i in patch[:-4].split('_')])
@@ -40,6 +44,7 @@ def pil_loader(path):
     '''
     with open(path, 'rb') as f:
         img = Image.open(f)
+        #^TODO: YOU CAN DO Image.open(path)
         return img.convert('RGB')
 
 class SlideData(Dataset):
@@ -64,17 +69,22 @@ class SlideData(Dataset):
         test_id = [item for item in wsi_id if overall_info[2][item]=='test']
         if train == 'train':
             # path, label, position, parent slide
-            self.plpp = get_slide_path([overall_info[0][item] for item in train_id],path) 
+            self.plpp = get_slide_path(
+                [overall_info[0][item] for item in train_id],path) 
             self.current_id = train_id
         elif train == 'val':
-            self.plpp = get_slide_path([overall_info[0][item] for item in val_id],path)
+            self.plpp = get_slide_path(
+                [overall_info[0][item] for item in val_id],path)
             self.current_id = val_id
         elif train == 'trainplusval':
-            self.plpp = get_slide_path([overall_info[0][item] for item in train_plus_val_id],path)
+            self.plpp = get_slide_path(
+                [overall_info[0][item] for item in train_plus_val_id],path)
             self.current_id = train_plus_val_id
         else:
-            self.plpp = get_slide_path([overall_info[0][item] for item in test_id],path)
+            self.plpp = get_slide_path(
+                [overall_info[0][item] for item in test_id],path)
             self.current_id = test_id
+
     def _find_classes(self,id2label):
         classes = list(set(id2label.values()))
         classes.sort()
@@ -87,8 +97,10 @@ class SlideData(Dataset):
             sample = self.transforms(sample)
         target = self.class_to_idx[self.plpp[1][index]] 
         return sample, target, self.plpp[2][index], self.slide2id[self.plpp[3][index]]
+
     def __len__(self):
         return len(self.plpp[0])
+
     def pick_WSI(self,wsi_id):
         self.plpp = get_slide_path([self.overall_info[0][item] for item in [wsi_id]],self.path)
         self.current_id = wsi_id
