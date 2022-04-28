@@ -21,15 +21,15 @@ from models import GraphCls
 
 config = Config()
 
-train_graphs = pickle.load(open(config.train_graphs,'rb'))
-test_graphs = pickle.load(open(config.test_graphs,'rb'))
-val_graphs = pickle.load(open(config.val_graphs,'rb'))
+train_graphs = pickle.load(open(config.train_graphs, 'rb'))
+test_graphs = pickle.load(open(config.test_graphs, 'rb'))
+val_graphs = pickle.load(open(config.val_graphs, 'rb'))
 
-
+mode = config.mode
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-loader = gDataLoader(train_graphs,batch_size=config.batch_size,shuffle=True)
-vloader = gDataLoader(val_graphs,batch_size=len(val_graphs),shuffle=False)
-tloader = gDataLoader(test_graphs,batch_size=len(test_graphs),shuffle=False)
+loader = gDataLoader(train_graphs, batch_size=config.batch_size, shuffle=True)
+vloader = gDataLoader(val_graphs, batch_size=len(val_graphs), shuffle=False)
+tloader = gDataLoader(test_graphs, batch_size=len(test_graphs), shuffle=False)
 model = GraphCls(hidden_channels=config.hidden_size)
 
 optimizer = torch.optim.AdamW(
@@ -52,85 +52,66 @@ def run():
     train_loss = []
     val_acc = []
     lr_list = []
-    for epoch in range(1,config.epochs+1):
-        train_running_loss = 0.0
+    if mode == 'train':
+        for epoch in range(1, config.epochs+1):
+            train_running_loss = 0.0
+            for gb in loader:
+                model = model.train()
+                optimizer.zero_grad()
+                out = model(gb.x.to(device), gb.edge_index.to(device), gb.edge_attr.to(device), gb.batch.to(device))
+                loss = criterion(out, gb.graph_y.to(device)) 
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
+                train_running_loss += loss.item() * gb.graph_y.size(0)
+            current_lr = optimizer.param_groups[0]['lr']
+            lr_list.append(current_lr)
+            print(f'training loss: {train_running_loss/len(train_graphs)}')   
+            train_loss.append(train_running_loss/len(train_graphs)) 
+            for gb in vloader:
+                with torch.no_grad():
+                    model = model.eval()
+                    out = model(gb.x.to(device), gb.edge_index.to(device), gb.edge_attr.to(device), gb.batch.to(device))
+                pred = np.array(torch.argmax(out, dim=1).cpu())
+                true = np.array(gb.graph_y)
+                valid_acc = accuracy_score(true, pred)
+                print(f'{epoch}: {current_lr} valid_accuracy:{valid_acc}', end='; ')
+                val_acc.append(valid_acc)
+            scheduler1.step(loss.item())
+
+        #Evaluate the model
+        print('Evaluation:')
+        loader = gDataLoader(train_graphs, batch_size=len(train_graphs), shuffle=False)
         for gb in loader:
-            model = model.train()
-            optimizer.zero_grad()
-            out = model(gb.x.to(device), gb.edge_index.to(device),gb.edge_attr.to(device),gb.batch.to(device))
-            loss = criterion(out,gb.graph_y.to(device)) 
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-            train_running_loss += loss.item() * gb.graph_y.size(0)
-        current_lr = optimizer.param_groups[0]['lr']
-        lr_list.append(current_lr)
-        print(f'training loss: {train_running_loss/len(train_graphs)}')   
-        train_loss.append(train_running_loss/len(train_graphs)) 
-        for gb in vloader:
-            with torch.no_grad():
-                model = model.eval()
-                out = model(gb.x.to(device), gb.edge_index.to(device),gb.edge_attr.to(device),gb.batch.to(device))
+            model = model.eval()
+            out = model(gb.x.to(device), gb.edge_index.to(device), gb.edge_attr.to(device), gb.batch.to(device))
+            pred = np.array(torch.argmax(out, dim=1).cpu())
+            true = np.array(gb.graph_y)
+        score_list = softmax(out.cpu().detach().numpy(),axis=1)
+        print(confusion_matrix(true, pred))
+        print(score(true, pred))
+        loader = gDataLoader(val_graphs, batch_size=len(val_graphs), shuffle=False)
+        for gb in loader:
+            print(gb.slide_index)
+            model = model.eval()
+            out = model(gb.x.to(device), gb.edge_index.to(device), gb.edge_attr.to(device), gb.batch.to(device))
             pred = np.array(torch.argmax(out,dim=1).cpu())
             true = np.array(gb.graph_y)
-            valid_acc = accuracy_score(true,pred)
-            print(f'{epoch}: {current_lr} valid_accuracy:{valid_acc}', end='; ')
-            val_acc.append(valid_acc)
-        scheduler1.step(loss.item())
+        print(confusion_matrix(true, pred))
+        print(score(true,pred))
+        torch.save(model.state_dict(), config.model_path)
 
+    else:
+        loader = gDataLoader(test_graphs, batch_size=len(test_graphs), shuffle=False)
+        for gb in loader:
+            model.load_state_dict(torch.load(config.model_path))
+            model = model.eval()
+            out = model(gb.x.to(device), gb.edge_index.to(device), gb.edge_attr.to(device), gb.batch.to(device))
+            pred = np.array(torch.argmax(out, dim=1).cpu())
+            true = np.array(gb.graph_y)
+        print(confusion_matrix(true, pred))
+        print(score(true, pred))
 
-    #Evaluate the model
-    print('Evaluation:')
-
-    loader = gDataLoader(train_graphs, batch_size=len(train_graphs), shuffle=False)
-    #^TODO: IN GENERAL, ADD SINGLE SPACE AFTER COMMA FOR BETTER VISIBILITY
-    for gb in loader:
-        model = model.eval()
-        out = model(gb.x.to(device), gb.edge_index.to(device),gb.edge_attr.to(device),gb.batch.to(device))
-        pred = np.array(torch.argmax(out,dim=1).cpu())
-        true = np.array(gb.graph_y)
-    score_list = softmax(out.cpu().detach().numpy(),axis=1)
-    print(confusion_matrix(true,pred))
-    print(score(true,pred))
-
-    loader = gDataLoader(val_graphs,batch_size=len(val_graphs),shuffle=False)
-    for gb in loader:
-        print(gb.slide_index)
-        model = model.eval()
-        out = model(gb.x.to(device), gb.edge_index.to(device),gb.edge_attr.to(device),gb.batch.to(device))
-        pred = np.array(torch.argmax(out,dim=1).cpu())
-        true = np.array(gb.graph_y)
-    print(confusion_matrix(true,pred))
-    print(score(true,pred))
-
-    loader = gDataLoader(test_graphs,batch_size=len(test_graphs),shuffle=False)
-    for gb in loader:
-        model = model.eval()
-        out = model(gb.x.to(device), gb.edge_index.to(device),gb.edge_attr.to(device),gb.batch.to(device))
-        pred = np.array(torch.argmax(out,dim=1).cpu())
-        true = np.array(gb.graph_y)
-    print(confusion_matrix(true,pred))
-    print(score(true,pred))
-    """^TODO: INSTEAD OF RUNNING EVALUATION OF A TRAIN, VAL, TEST IN A SEQUANCE,
-    I'D RECOMMEND ADDING AN AUGMENT TO CONTROL WHETHER THE SCRIPT IS RUNNING ON
-    TRAIN/VAL SET OR TEST SET. THIS IS IMPORTANT BECAUSE TEST SET SHOULD BE
-    TESTED ONLY ONCE USING A MODEL THAT PERFORMS BEST ON VALIDATION SET. 
-    CURRENT FORMULATION GIVES A READER A WRONG IMPRESSION IF THE SCRIPT 
-    VIOLATES THE PRINCIPLE.
-
-    ex)
-    mode = config.mode #or mode = args.mode
-    mode is either 'train' or 'test'
-
-    if mode == 'train':
-        for each epoch:
-            do train
-            evalate on val
-        save_model()
-    else: # 'test'
-        load_model_snapshot()
-        evaluate on test
-    """
 
 if __name__ == '__main__':
     run()

@@ -25,17 +25,15 @@ The generated graphs will be used in main.py to train and evaluate the graph
 
 config = Config()
 save_all = False #Save the intermediate data or not
-output_dst = 'clean_graph_updated_4allconn' #destination to save graphs
-#^TODO: GENERALIZE NAME. SHOULDN'T THIS BE INCLUDED IN THE CONFIG FILE?
+output_dst = config.output_dst #destination to save graphs
 splits = ['train','test','val']
 
 
 
 for split in splits:
     #Input the parameters used to extract patch images#
-    window_size = 224
-    nonoverlap_factor = 2/3
-    #^TODO: THESE SHOULD BE IN THE CONFIG.
+    window_size = config.window_size
+    nonoverlap_factor = config.nonoverlap_factor
     step_size = int(window_size * nonoverlap_factor)
     ##################
 
@@ -46,15 +44,13 @@ for split in splits:
     model = torchvision.models.resnet18(pretrained=False)
     num_ftrs = model.fc.in_features
     model.fc = nn.Sequential(
-        nn.Linear(num_ftrs, 3))
-    #^TODO: THE NUMBER OF CLASSES SHOULD BE A VARIABLE TO BE STORED IN COFNIG?
+        nn.Linear(num_ftrs, config.num_classes))
     model.load_state_dict(ckpt['model_state_dict'])
     model = nn.Sequential(*list(model.children())[:-1])
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    path_mean = [0.7725, 0.5715, 0.6842]
-    path_std = [0.1523, 0.2136, 0.1721]
-    #^TODO: SHOULD BE DEFINED IN CONFIG?
+    path_mean = config.path_mean
+    path_std = config.path_std
     transform = torchvision.transforms.Compose([
                 torchvision.transforms.ToTensor(),
                 torchvision.transforms.Normalize(mean=path_mean, std=path_std)])
@@ -67,8 +63,7 @@ for split in splits:
         overall_info=config.val_raw_pkl) 
     dataloaders = {}
     dataloaders[split] = torch.utils.data.DataLoader(
-        dataset=train_dataset,batch_size=32,num_workers=8,shuffle=False)
-    #^TODO: BATCHSIZE, NUMWORKERS -> CONFIG
+        dataset=train_dataset,batch_size=config.batch_size,num_workers=config.num_workers,shuffle=False)
     ##################
 
     #Extract patch-level features and match patch positions
@@ -89,13 +84,7 @@ for split in splits:
         label_list.extend([item for item in train_labels.detach().cpu().numpy()])
         score_list.extend(train_scores)
         pos_info = [list(item.numpy()) for item in positions]
-        for tissue_x, tissue_y, patch_x, patch_y in zip(pos_info[0], pos_info[1], pos_info[2], pos_info[3]):
-            """
-            ^TODO: MAYBE YOU CAN REPLACE
-                zip(pos_info[0], pos_info[1], pos_info[2], pos_info[3])
-            WITH
-                zip(*pos_info[:4])
-            """
+        for tissue_x, tissue_y, patch_x, patch_y in zip(*pos_info[:4]):
             pos_list.append([
                 (tissue_x//step_size + 1),
                 (tissue_y//step_size + 1),
@@ -106,47 +95,39 @@ for split in splits:
     #Construct graphs using patch features as node features 
     #and creating edges based on patch positions
     id2label = pickle.load(open(config.val_raw_pkl,'rb'))[1]
-    name_map = {'NotAnnotated':1,'Neoplastic':0,'Positive':2}
-    #^TODO: THIS CAN BE IN CONFIG
+    name_map = config.name_map
 
-    """^TODO: I'D RECOMMEND THIS HERE TO AVOID REPETITION LATER
     pos_list_array = np.array(pos_list)
     ids_list_array = np.array(ids_list)
-    """
     graph_list = []
     for wsi_id in tqdm(list(set(ids_list))):
         wsi_label = name_map[id2label[wsi_id]]
-        slide_pos = np.array(pos_list)[np.array(ids_list) == wsi_id]
-        sx_min = np.min(np.array(pos_list)[np.array(ids_list) == wsi_id],axis=0)[0]
-        sy_min = np.min(np.array(pos_list)[np.array(ids_list) == wsi_id],axis=0)[1]
+        slide_pos = pos_list_array[ids_list_array == wsi_id]
+        sx_min = np.min(pos_list_array[ids_list_array == wsi_id],axis=0)[0]
+        sy_min = np.min(pos_list_array[ids_list_array == wsi_id],axis=0)[1]
         slide_pos[:,0] -= sx_min - 1
         slide_pos[:,1] -= sy_min - 1
         
         x = slide_pos[:,0] + slide_pos[:,2]
         y = slide_pos[:,1] + slide_pos[:,3]
-        positive_score = np.array(score_list)[np.array(ids_list) == wsi_id]
-        patch_label = np.array(label_list)[np.array(ids_list) == wsi_id]
+        positive_score = np.array(score_list)[ids_list_array == wsi_id]
+        patch_label = np.array(label_list)[ids_list_array == wsi_id]
         heat_img = np.zeros((max(x),max(y),512))
         label_img = np.ones((max(x),max(y)))
         for i in range(len(positive_score)):
             heat_img[x[i]-1,y[i]-1,:] = positive_score[i] * 255
             label_img[x[i]-1,y[i]-1] = patch_label[i]
-        if (len(np.nonzero(heat_img)[0]) == len(np.nonzero(heat_img)[1])) &\
-           (len(np.nonzero(heat_img)[2]) == len(np.nonzero(heat_img)[1])):
-            text = 'gg'
-            #^ WHAT'S GG?
-        else:
-            print(text)
+
         if not os.path.exists(f'./{output_dst}/3cls_{split}'):
             os.makedirs(f'./{output_dst}/3cls_{split}')  
         if not os.path.exists(f'./{output_dst}/3cls_{split}/score/'):
             os.makedirs(f'./{output_dst}/3cls_{split}/score/')
         if not os.path.exists(f'./{output_dst}/3cls_{split}/label/'):
             os.makedirs(f'./{output_dst}/3cls_{split}/label/')      
-        #^TODO: USE PATHLIB FUNCTIONS
-        if save_all:        
-            np.save(f'./{output_dst}/3cls_{split}/score/{wsi_id}_{wsi_label}',heat_img)
-            np.save(f'./{output_dst}/3cls_{split}/label/{wsi_id}_{wsi_label}',label_img)
+        if save_all:
+            specific_output_dir = Path('.').joinpath(output_dst).joinpath(f'3cls_{split}')
+            np.save(specific_output_dir.joinpath('score').joinpath(f'{wsi_id}_{wsi_label}',heat_img))
+            np.save(specific_output_dir.joinpath('label').joinpath(f'{wsi_id}_{wsi_label}',label_img))        
         else:
             graph_list.append(get_dataset(heat_img,label_img,wsi_id,wsi_label))
     if not save_all:
