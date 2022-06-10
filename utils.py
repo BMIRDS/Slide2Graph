@@ -16,7 +16,6 @@ import torch_geometric.utils as gutils
 import networkx as nx
 
 from config import Config
-from config import Config
 
 config = Config()
 
