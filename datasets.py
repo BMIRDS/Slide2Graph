@@ -51,14 +51,14 @@ class SlideData(Dataset):
     """
     Create a dataset to load patch-level images
     """
-    def __init__(self,path,transforms=None,train='train',exclude=None,overall_info=config.dst_pkl):
+    def __init__(self,path, overall_info, transforms=None, train='train', exclude=None):
         self.transforms = transforms
         self.path = path
         overall_info = pickle.load(open(overall_info,'rb'))
         if exclude is not None:
-            overall_info[1] = {k:v for k,v in overall_info[1].items() if v!=exclude}
-            overall_info[0] = {k:v for k,v in overall_info[0].items() if k in overall_info[1].keys()}
-            overall_info[2] = {k:v for k,v in overall_info[2].items() if k in overall_info[1].keys()}
+            overall_info[1] = {k:v for k, v in overall_info[1].items() if v!=exclude}
+            overall_info[0] = {k:v for k, v in overall_info[0].items() if k in overall_info[1].keys()}
+            overall_info[2] = {k:v for k, v in overall_info[2].items() if k in overall_info[1].keys()}
         self.overall_info = overall_info #[id2slide,id2label,id2split]
         self.slide2id = {v: k for k, v in overall_info[0].items()}
         self.classes, self.class_to_idx = self._find_classes(overall_info[1])
@@ -85,13 +85,13 @@ class SlideData(Dataset):
                 [overall_info[0][item] for item in test_id],path)
             self.current_id = test_id
 
-    def _find_classes(self,id2label):
+    def _find_classes(self, id2label):
         classes = list(set(id2label.values()))
         classes.sort()
         class_to_idx = {cls_name:i for i, cls_name in enumerate(classes)}
         return classes, class_to_idx
 
-    def __getitem__(self,index):
+    def __getitem__(self, index):
         sample = pil_loader(self.plpp[0][index])
         if self.transforms is not None:
             sample = self.transforms(sample)
@@ -101,13 +101,8 @@ class SlideData(Dataset):
     def __len__(self):
         return len(self.plpp[0])
 
-    def pick_WSI(self,wsi_id):
+    def pick_WSI(self, wsi_id):
         self.plpp = get_slide_path([self.overall_info[0][item] for item in [wsi_id]],self.path)
         self.current_id = wsi_id
-
-
-
-
-
 
 

@@ -1,18 +1,11 @@
-from matplotlib import pyplot as plt
-from pathlib import Path
-import imp
-import math
 import numpy as np
 import pickle
-
 from scipy.special import softmax
-from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
+from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import precision_recall_fscore_support as score
-from torch_geometric import utils as gutils
 from torch_geometric.data import DataLoader as gDataLoader
 import torch
-import torch_geometric.data as gdata
-import torch_geometric.utils as gutils
+
 
 #from utils import get_dataset
 from config import Config
@@ -29,7 +22,6 @@ mode = config.mode
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 loader = gDataLoader(train_graphs, batch_size=config.batch_size, shuffle=True)
 vloader = gDataLoader(val_graphs, batch_size=len(val_graphs), shuffle=False)
-tloader = gDataLoader(test_graphs, batch_size=len(test_graphs), shuffle=False)
 model = GraphCls(hidden_channels=config.hidden_size)
 
 optimizer = torch.optim.AdamW(
@@ -47,6 +39,7 @@ scheduler1 = torch.optim.lr_scheduler.ReduceLROnPlateau(
 
 def run():
     ##Train the model
+    global model, loader, vloader
     model.to(device)
     criterion.to(device)
     train_loss = []
@@ -59,15 +52,15 @@ def run():
                 model = model.train()
                 optimizer.zero_grad()
                 out = model(gb.x.to(device), gb.edge_index.to(device), gb.edge_attr.to(device), gb.batch.to(device))
-                loss = criterion(out, gb.graph_y.to(device)) 
+                loss = criterion(out, gb.graph_y.to(device))
                 loss.backward()
                 optimizer.step()
                 optimizer.zero_grad()
                 train_running_loss += loss.item() * gb.graph_y.size(0)
             current_lr = optimizer.param_groups[0]['lr']
             lr_list.append(current_lr)
-            print(f'training loss: {train_running_loss/len(train_graphs)}')   
-            train_loss.append(train_running_loss/len(train_graphs)) 
+            print(f'training loss: {train_running_loss/len(train_graphs)}')
+            train_loss.append(train_running_loss/len(train_graphs))
             for gb in vloader:
                 with torch.no_grad():
                     model = model.eval()
@@ -87,7 +80,6 @@ def run():
             out = model(gb.x.to(device), gb.edge_index.to(device), gb.edge_attr.to(device), gb.batch.to(device))
             pred = np.array(torch.argmax(out, dim=1).cpu())
             true = np.array(gb.graph_y)
-        score_list = softmax(out.cpu().detach().numpy(),axis=1)
         print(confusion_matrix(true, pred))
         print(score(true, pred))
         loader = gDataLoader(val_graphs, batch_size=len(val_graphs), shuffle=False)
@@ -95,10 +87,10 @@ def run():
             print(gb.slide_index)
             model = model.eval()
             out = model(gb.x.to(device), gb.edge_index.to(device), gb.edge_attr.to(device), gb.batch.to(device))
-            pred = np.array(torch.argmax(out,dim=1).cpu())
+            pred = np.array(torch.argmax(out, dim=1).cpu())
             true = np.array(gb.graph_y)
         print(confusion_matrix(true, pred))
-        print(score(true,pred))
+        print(score(true, pred))
         torch.save(model.state_dict(), config.model_path)
 
     else:

@@ -27,7 +27,7 @@ class Config():
     val_model = 'Patch_feature_extractor'  #ResNet18 or other models that will be used to extract patches' features
     validation_raw_src = 'patch_images_dir' #The directory to all the patch images
     val_raw_pkl = 'WSI_information.pkl' #DICT STRUCTURE: [{index:WSI_name}, {index:class}, {index:split}]
-    name_map = {'NotAnnotated':1,'Neoplastic':0,'Positive':2}
+    name_map = {'NotAnnotated':1, 'Neoplastic':0, 'Positive':2}
 
     #Patch level parameters
     windows_size = 224

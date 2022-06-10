@@ -1,14 +1,10 @@
-from collections import Counter
 from pathlib import Path
-from PIL import Image
 import numpy as np
 import os
 import pickle
 
 from torch import nn
 from tqdm import tqdm
-import pandas as pd
-import sklearn
 import torch
 import torchvision
 
@@ -24,22 +20,22 @@ The generated graphs will be used in main.py to train and evaluate the graph
 
 
 config = Config()
-save_all = False #Save the intermediate data or not
-output_dst = config.output_dst #destination to save graphs
-splits = ['train','test','val']
+save_all = False  #Save the intermediate data or not
+output_dst = config.output_dst  #destination to save graphs
+splits = ['train', 'test', 'val']
 
 
 
 for split in splits:
     #Input the parameters used to extract patch images#
-    window_size = config.window_size
+    window_size = config.windows_size
     nonoverlap_factor = config.nonoverlap_factor
     step_size = int(window_size * nonoverlap_factor)
     ##################
 
     #Load the patch-level feature extractor and patch data
-    model_path = Path(config.val_model) #Patch-level feature extractor
-    parent_path = Path(config.validation_raw_src) #Path to small fixed-size patch images
+    model_path = Path(config.val_model)  #Patch-level feature extractor
+    parent_path = Path(config.validation_raw_src)  #Path to small fixed-size patch images
     ckpt = torch.load(f=str(model_path.joinpath('ckpt.pth')))
     model = torchvision.models.resnet18(pretrained=False)
     num_ftrs = model.fc.in_features
@@ -57,13 +53,13 @@ for split in splits:
     model.to(device)
     model.train(mode=False)
     train_dataset = SlideData(
-        parent_path,transform,
+        path = parent_path, transforms = transform,
         train=split,
         exclude=None,
         overall_info=config.val_raw_pkl) 
     dataloaders = {}
     dataloaders[split] = torch.utils.data.DataLoader(
-        dataset=train_dataset,batch_size=config.batch_size,num_workers=config.num_workers,shuffle=False)
+        dataset=train_dataset, batch_size=config.batch_size, num_workers=config.num_workers, shuffle=False)
     ##################
 
     #Extract patch-level features and match patch positions
@@ -79,7 +75,7 @@ for split in splits:
             train_outputs = model(train_inputs)
             train_preds = torch.argmax(train_outputs,dim=1)
             train_scores = [np.squeeze(
-                torch.softmax(item,dim=0).detach().cpu().numpy()) for item in train_outputs]         
+                torch.softmax(item, dim=0).detach().cpu().numpy()) for item in train_outputs]         
         pred_list.extend([item for item in train_preds.detach().cpu().numpy()])
         label_list.extend([item for item in train_labels.detach().cpu().numpy()])
         score_list.extend(train_scores)
@@ -94,7 +90,7 @@ for split in splits:
 
     #Construct graphs using patch features as node features 
     #and creating edges based on patch positions
-    id2label = pickle.load(open(config.val_raw_pkl,'rb'))[1]
+    id2label = pickle.load(open(config.val_raw_pkl, 'rb'))[1]
     name_map = config.name_map
 
     pos_list_array = np.array(pos_list)
@@ -112,8 +108,8 @@ for split in splits:
         y = slide_pos[:,1] + slide_pos[:,3]
         positive_score = np.array(score_list)[ids_list_array == wsi_id]
         patch_label = np.array(label_list)[ids_list_array == wsi_id]
-        heat_img = np.zeros((max(x),max(y),512))
-        label_img = np.ones((max(x),max(y)))
+        heat_img = np.zeros((max(x), max(y), 512))
+        label_img = np.ones((max(x), max(y)))
         for i in range(len(positive_score)):
             heat_img[x[i]-1,y[i]-1,:] = positive_score[i] * 255
             label_img[x[i]-1,y[i]-1] = patch_label[i]
@@ -126,11 +122,11 @@ for split in splits:
             os.makedirs(f'./{output_dst}/3cls_{split}/label/')      
         if save_all:
             specific_output_dir = Path('.').joinpath(output_dst).joinpath(f'3cls_{split}')
-            np.save(specific_output_dir.joinpath('score').joinpath(f'{wsi_id}_{wsi_label}',heat_img))
-            np.save(specific_output_dir.joinpath('label').joinpath(f'{wsi_id}_{wsi_label}',label_img))        
+            np.save(specific_output_dir.joinpath('score').joinpath(f'{wsi_id}_{wsi_label}', heat_img))
+            np.save(specific_output_dir.joinpath('label').joinpath(f'{wsi_id}_{wsi_label}', label_img))        
         else:
-            graph_list.append(get_dataset(heat_img,label_img,wsi_id,wsi_label))
+            graph_list.append(get_dataset(heat_img, label_img, wsi_id, wsi_label))
     if not save_all:
         with open(f'./{output_dst}/{split}_graphs.pkl','wb') as f:
-            pickle.dump(graph_list,f)
+            pickle.dump(graph_list, f)
     ##################
